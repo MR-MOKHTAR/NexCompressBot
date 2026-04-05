@@ -9,8 +9,17 @@ if (!fs.existsSync(TMP_DIR)) {
   fs.mkdirSync(TMP_DIR, { recursive: true });
 }
 
+import { fileURLToPath } from "url";
+
 export async function downloadFile(url: string, extension: string): Promise<string> {
   const filePath = path.join(TMP_DIR, `${uuidv4()}${extension}`);
+
+  if (url.startsWith("file://")) {
+    const sourcePath = fileURLToPath(url);
+    fs.copyFileSync(sourcePath, filePath);
+    return filePath;
+  }
+
   const response = await axios({
     url,
     method: "GET",
