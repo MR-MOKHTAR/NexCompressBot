@@ -20,9 +20,13 @@ initDb();
 
 const bot = new Telegraf(BOT_TOKEN, {
   handlerTimeout: 9_000_000,
-  telegram: {
-    apiRoot: "https://localhost:8081",
-  },
+  ...(process.env.TELEGRAM_API_ROOT
+    ? {
+        telegram: {
+          apiRoot: process.env.TELEGRAM_API_ROOT,
+        },
+      }
+    : {}),
 });
 
 bot.start(async (ctx) => {
