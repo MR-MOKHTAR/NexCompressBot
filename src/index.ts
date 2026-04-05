@@ -49,7 +49,7 @@ bot.command("lang", async (ctx) => {
 });
 
 bot.on(["audio", "voice"], handleAudio);
-// bot.on(["video", "video_note", "document"], handleVideo);
+bot.on(["video", "video_note", "document"], handleVideo);
 
 bot.on("callback_query", handleCallback);
 
