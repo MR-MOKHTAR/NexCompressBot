@@ -25,15 +25,30 @@ export async function handleAudio(ctx: Context) {
   const userLang =
     (await getUserLang(userId)) || ctx.from?.language_code || "en";
 
-  // @ts-ignore
-  const audioObj = ctx.message?.audio || ctx.message?.voice;
-  const fileId = audioObj?.file_id;
+  const msg = ctx.message;
+  if (!msg) return;
+
+  let fileId: string | undefined;
+  let fileSize: number | undefined;
+  let durationMs: number | undefined;
+  let fileNameRaw: string | undefined;
+
+  if ("audio" in msg) {
+    fileId = msg.audio.file_id;
+    fileSize = msg.audio.file_size;
+    durationMs = msg.audio.duration;
+    fileNameRaw = msg.audio.file_name;
+  } else if ("voice" in msg) {
+    fileId = msg.voice.file_id;
+    fileSize = msg.voice.file_size;
+    durationMs = msg.voice.duration;
+  }
 
   if (!fileId) return;
 
-  const size = formatSize(audioObj?.file_size);
-  const duration = formatDuration(audioObj?.duration);
-  const fileName = audioObj?.file_name;
+  const size = formatSize(fileSize);
+  const duration = formatDuration(durationMs);
+  const fileName = fileNameRaw;
   const shortId = saveMedia(fileId, "audio", fileName);
 
   const msgText = t("select_audio_quality", userLang)
@@ -54,16 +69,35 @@ export async function handleVideo(ctx: Context) {
   const userLang =
     (await getUserLang(userId)) || ctx.from?.language_code || "en";
 
-  // @ts-ignore
-  const videoObj =
-    ctx.message?.video || ctx.message?.video_note || ctx.message?.document;
-  // some videos are sent as document
-  if (!videoObj?.file_id) return;
-  const fileId = videoObj.file_id;
+  const msg = ctx.message;
+  if (!msg) return;
 
-  const size = formatSize(videoObj?.file_size);
-  const duration = formatDuration(videoObj?.duration); // duration might be undefined for documents
-  const fileName = videoObj?.file_name;
+  let fileId: string | undefined;
+  let fileSize: number | undefined;
+  let durationMs: number | undefined;
+  let fileNameRaw: string | undefined;
+
+  if ("video" in msg) {
+    fileId = msg.video.file_id;
+    fileSize = msg.video.file_size;
+    durationMs = msg.video.duration;
+    fileNameRaw = msg.video.file_name;
+  } else if ("video_note" in msg) {
+    fileId = msg.video_note.file_id;
+    fileSize = msg.video_note.file_size;
+    durationMs = msg.video_note.duration;
+  } else if ("document" in msg) {
+    fileId = msg.document.file_id;
+    fileSize = msg.document.file_size;
+    fileNameRaw = msg.document.file_name;
+  }
+
+  // some videos are sent as document
+  if (!fileId) return;
+
+  const size = formatSize(fileSize);
+  const duration = formatDuration(durationMs); // duration might be undefined for documents
+  const fileName = fileNameRaw;
   const shortId = saveMedia(fileId, "video", fileName);
 
   const msgText = t("select_video_quality", userLang)

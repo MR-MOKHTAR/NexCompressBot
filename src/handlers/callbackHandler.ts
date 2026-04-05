@@ -69,10 +69,14 @@ export async function handleCallback(ctx: Context) {
     );
   }
 
-  // @ts-ignore
+  // Safely get message_id to reply to
+  const message = ctx.callbackQuery?.message;
+  const msgId = (message && 'reply_to_message' in message)
+    ? (message as any).reply_to_message?.message_id
+    : undefined;
+
   const processingMsg = await ctx.reply(initialText, {
-    reply_to_message_id:
-      ctx.callbackQuery.message?.reply_to_message?.message_id,
+    ...(msgId ? { reply_parameters: { message_id: msgId } } : {}),
   });
 
   processingQueue.enqueue({
