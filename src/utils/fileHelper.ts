@@ -11,7 +11,10 @@ if (!fs.existsSync(TMP_DIR)) {
 
 import { fileURLToPath } from "url";
 
-export async function downloadFile(url: string, extension: string): Promise<string> {
+export async function downloadFile(
+  url: string,
+  extension: string,
+): Promise<string> {
   const filePath = path.join(TMP_DIR, `${uuidv4()}${extension}`);
 
   if (url.startsWith("file://")) {

@@ -8,5 +8,6 @@
   "done_stats": "Processing complete!\n\nOriginal Size: {{oldSize}} MB\nNew Size: {{newSize}} MB\nYou saved {{savedPercent}}% in file size!",
   "uploading": "Uploading file...",
   "select_language": "Please select your language:",
-  "language_saved": "Your language has been saved successfully."
+  "language_saved": "Your language has been saved successfully.",
+  "queued": "⏳ In queue...\nEstimated position: {{pos}}"
 }

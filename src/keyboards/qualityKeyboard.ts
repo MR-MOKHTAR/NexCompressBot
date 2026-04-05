@@ -8,7 +8,7 @@ export function getAudioKeyboard(fileId: string) {
     ],
     [
       Markup.button.callback("48 kbps", `a_48k_${fileId}`),
-      Markup.button.callback("24 kbps", `a_24k_${fileId}`),
+      Markup.button.callback("32 kbps", `a_32k_${fileId}`),
     ],
   ]);
 }
@@ -32,6 +32,6 @@ export function getLanguageKeyboard() {
       Markup.button.callback("فارسی 🇮🇷", "lang_fa"),
       Markup.button.callback("العربية 🇸🇦", "lang_ar"),
       Markup.button.callback("English 🇺🇸", "lang_en"),
-    ]
+    ],
   ]);
 }

@@ -37,7 +37,7 @@ bot.start(async (ctx) => {
   ctx.reply(t("welcome", userLang));
 });
 
-bot.command("language", async (ctx) => {
+bot.command("lang", async (ctx) => {
   const userId = ctx.from?.id;
   if (!userId) return;
   const userLang =
