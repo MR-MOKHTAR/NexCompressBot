@@ -18,22 +18,29 @@ if (!BOT_TOKEN) {
 // Initialize SQLite database
 initDb();
 
-const bot = new Telegraf(BOT_TOKEN, { handlerTimeout: 9_000_000 });
+const bot = new Telegraf(BOT_TOKEN, {
+  handlerTimeout: 9_000_000,
+  telegram: {
+    apiRoot: "https://localhost:8081",
+  },
+});
 
 bot.start(async (ctx) => {
   const userId = ctx.from?.id;
   if (!userId) return;
-  const userLang = (await getUserLang(userId)) || ctx.from?.language_code || "en";
+  const userLang =
+    (await getUserLang(userId)) || ctx.from?.language_code || "en";
   ctx.reply(t("welcome", userLang));
 });
 
 bot.command("language", async (ctx) => {
   const userId = ctx.from?.id;
   if (!userId) return;
-  const userLang = (await getUserLang(userId)) || ctx.from?.language_code || "en";
-  
+  const userLang =
+    (await getUserLang(userId)) || ctx.from?.language_code || "en";
+
   ctx.reply(t("select_language", userLang), {
-    reply_markup: getLanguageKeyboard().reply_markup
+    reply_markup: getLanguageKeyboard().reply_markup,
   });
 });
 
@@ -46,7 +53,8 @@ bot.on("callback_query", handleCallback);
 bot.catch(async (err, ctx) => {
   console.error(`Error for ${ctx.updateType}`, err);
   if (ctx.from) {
-    const userLang = (await getUserLang(ctx.from.id)) || ctx.from?.language_code || "en";
+    const userLang =
+      (await getUserLang(ctx.from.id)) || ctx.from?.language_code || "en";
     ctx.reply(t("error_generic", userLang)).catch(console.error);
   }
 });
