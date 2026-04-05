@@ -1,0 +1,12 @@
+{
+  "welcome": "Welcome! Please send an audio or video file.",
+  "processing": "Processing...\n\n{{progress}}",
+  "select_audio_quality": "Your file: {{size}} MB | Duration: {{duration}}\n\nPlease select the desired audio quality:",
+  "select_video_quality": "Your file: {{size}} MB | Duration: {{duration}}\n\nPlease select the desired video quality:",
+  "error_generic": "Sorry, an error occurred. Please try again.",
+  "error_too_large": "The sent file is too large.",
+  "done_stats": "Processing complete!\n\nOriginal Size: {{oldSize}} MB\nNew Size: {{newSize}} MB\nYou saved {{savedPercent}}% in file size!",
+  "uploading": "Uploading file...",
+  "select_language": "Please select your language:",
+  "language_saved": "Your language has been saved successfully."
+}

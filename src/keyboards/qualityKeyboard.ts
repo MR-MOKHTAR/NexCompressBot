@@ -1,0 +1,37 @@
+import { Markup } from "telegraf";
+
+export function getAudioKeyboard(fileId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("128 kbps", `a_128k_${fileId}`),
+      Markup.button.callback("64 kbps", `a_64k_${fileId}`),
+    ],
+    [
+      Markup.button.callback("48 kbps", `a_48k_${fileId}`),
+      Markup.button.callback("24 kbps", `a_24k_${fileId}`),
+    ],
+  ]);
+}
+
+export function getVideoKeyboard(fileId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("1080p", `v_1080p_${fileId}`),
+      Markup.button.callback("720p", `v_720p_${fileId}`),
+    ],
+    [
+      Markup.button.callback("480p", `v_480p_${fileId}`),
+      Markup.button.callback("360p", `v_360p_${fileId}`),
+    ],
+  ]);
+}
+
+export function getLanguageKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("فارسی 🇮🇷", "lang_fa"),
+      Markup.button.callback("العربية 🇸🇦", "lang_ar"),
+      Markup.button.callback("English 🇺🇸", "lang_en"),
+    ]
+  ]);
+}
