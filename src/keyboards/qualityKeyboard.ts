@@ -13,19 +13,6 @@ export function getAudioKeyboard(fileId: string) {
   ]);
 }
 
-export function getVideoKeyboard(fileId: string) {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback("1080p", `v_1080p_${fileId}`),
-      Markup.button.callback("720p", `v_720p_${fileId}`),
-    ],
-    [
-      Markup.button.callback("480p", `v_480p_${fileId}`),
-      Markup.button.callback("360p", `v_360p_${fileId}`),
-    ],
-  ]);
-}
-
 export function getLanguageKeyboard() {
   return Markup.inlineKeyboard([
     [

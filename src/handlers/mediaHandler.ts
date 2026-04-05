@@ -1,8 +1,5 @@
 import { Context } from "telegraf";
-import {
-  getAudioKeyboard,
-  getVideoKeyboard,
-} from "../keyboards/qualityKeyboard";
+import { getAudioKeyboard } from "../keyboards/qualityKeyboard";
 import { saveMedia } from "../utils/store";
 import { t } from "../i18n";
 import { getUserLang } from "../utils/db";
@@ -57,55 +54,6 @@ export async function handleAudio(ctx: Context) {
 
   await ctx.reply(msgText, {
     reply_markup: getAudioKeyboard(shortId).reply_markup,
-    ...(ctx.message?.message_id
-      ? { reply_parameters: { message_id: ctx.message.message_id } }
-      : {}),
-  });
-}
-
-export async function handleVideo(ctx: Context) {
-  const userId = ctx.from?.id;
-  if (!userId) return;
-  const userLang =
-    (await getUserLang(userId)) || ctx.from?.language_code || "en";
-
-  const msg = ctx.message;
-  if (!msg) return;
-
-  let fileId: string | undefined;
-  let fileSize: number | undefined;
-  let durationMs: number | undefined;
-  let fileNameRaw: string | undefined;
-
-  if ("video" in msg) {
-    fileId = msg.video.file_id;
-    fileSize = msg.video.file_size;
-    durationMs = msg.video.duration;
-    fileNameRaw = msg.video.file_name;
-  } else if ("video_note" in msg) {
-    fileId = msg.video_note.file_id;
-    fileSize = msg.video_note.file_size;
-    durationMs = msg.video_note.duration;
-  } else if ("document" in msg) {
-    fileId = msg.document.file_id;
-    fileSize = msg.document.file_size;
-    fileNameRaw = msg.document.file_name;
-  }
-
-  // some videos are sent as document
-  if (!fileId) return;
-
-  const size = formatSize(fileSize);
-  const duration = formatDuration(durationMs); // duration might be undefined for documents
-  const fileName = fileNameRaw;
-  const shortId = saveMedia(fileId, "video", fileName);
-
-  const msgText = t("select_video_quality", userLang)
-    .replace("{{size}}", size)
-    .replace("{{duration}}", duration === "00:00" ? "??" : duration);
-
-  await ctx.reply(msgText, {
-    reply_markup: getVideoKeyboard(shortId).reply_markup,
     ...(ctx.message?.message_id
       ? { reply_parameters: { message_id: ctx.message.message_id } }
       : {}),

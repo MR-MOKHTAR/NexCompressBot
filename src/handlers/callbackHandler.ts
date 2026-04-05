@@ -2,7 +2,6 @@ import { Context } from "telegraf";
 import { getMedia } from "../utils/store";
 import { downloadFile, cleanupFiles } from "../utils/fileHelper";
 import { processAudio } from "../processors/audioProcessor";
-import { processVideo } from "../processors/videoProcessor";
 import { t } from "../i18n";
 import { getUserLang, setUserLang } from "../utils/db";
 import { processingQueue } from "../utils/queueManager";
@@ -71,9 +70,10 @@ export async function handleCallback(ctx: Context) {
 
   // Safely get message_id to reply to
   const message = ctx.callbackQuery?.message;
-  const msgId = (message && 'reply_to_message' in message)
-    ? (message as any).reply_to_message?.message_id
-    : undefined;
+  const msgId =
+    message && "reply_to_message" in message
+      ? (message as any).reply_to_message?.message_id
+      : undefined;
 
   const processingMsg = await ctx.reply(initialText, {
     ...(msgId ? { reply_parameters: { message_id: msgId } } : {}),
@@ -130,26 +130,18 @@ export async function handleCallback(ctx: Context) {
         // Download
         downloadedPath = await downloadFile(
           fileUrl.href,
-          mediaData.type === "audio" ? ".mp3" : ".mp4",
+          ".mp3",
         );
 
         // Ensure it updates processing status during a long task
         await handleProgress(10); // Start processing immediately after download finishes
 
         // Process
-        if (mediaData.type === "audio") {
-          processedPath = await processAudio(
-            downloadedPath,
-            quality,
-            handleProgress,
-          );
-        } else {
-          processedPath = await processVideo(
-            downloadedPath,
-            quality,
-            handleProgress,
-          );
-        }
+        processedPath = await processAudio(
+          downloadedPath!,
+          quality,
+          handleProgress,
+        );
 
         // Set final 100% processing bar
         const finalText = t("processing", userLang).replace(
@@ -164,6 +156,11 @@ export async function handleCallback(ctx: Context) {
             finalText,
           );
         } catch (err) {}
+
+        // Ensure paths exist before stat'ing
+        if (!downloadedPath || !processedPath) {
+          throw new Error("Download or processing failed");
+        }
 
         const oldBytes = fs.statSync(downloadedPath).size;
         const newBytes = fs.statSync(processedPath).size;
@@ -187,17 +184,11 @@ export async function handleCallback(ctx: Context) {
           );
         } catch (err) {}
 
-        if (mediaData.type === "audio") {
-          const fileOpts = mediaData.fileName
-            ? { source: processedPath, filename: mediaData.fileName }
-            : { source: processedPath };
-          await ctx.replyWithAudio(fileOpts, { caption: finalReport });
-        } else {
-          const fileOpts = mediaData.fileName
-            ? { source: processedPath, filename: mediaData.fileName }
-            : { source: processedPath };
-          await ctx.replyWithVideo(fileOpts, { caption: finalReport });
-        }
+        const fileOpts = {
+          source: processedPath,
+          ...(mediaData.fileName ? { filename: mediaData.fileName } : {}),
+        };
+        await ctx.replyWithAudio(fileOpts as any, { caption: finalReport });
 
         // Cleanup message
         await ctx.telegram

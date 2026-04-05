@@ -1,6 +1,6 @@
 import { Telegraf } from "telegraf";
 import { config } from "dotenv";
-import { handleAudio, handleVideo } from "./handlers/mediaHandler";
+import { handleAudio } from "./handlers/mediaHandler";
 import { handleCallback } from "./handlers/callbackHandler";
 import { t } from "./i18n";
 import { initDb, getUserLang } from "./utils/db";
@@ -49,7 +49,6 @@ bot.command("lang", async (ctx) => {
 });
 
 bot.on(["audio", "voice"], handleAudio);
-bot.on(["video", "video_note", "document"], handleVideo);
 
 bot.on("callback_query", handleCallback);
 
