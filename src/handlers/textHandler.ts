@@ -10,6 +10,7 @@ import { t } from "../i18n";
 import { getUserLang } from "../utils/db";
 import { processingQueue } from "../utils/queueManager";
 import fs from "fs";
+import path from "path";
 
 function buildProgressBar(percent: number): string {
   if (percent < 0) percent = 0;
@@ -169,9 +170,16 @@ export async function handleTextInput(ctx: Context) {
           );
         } catch (err) {}
 
+        let finalFileName = mediaData.fileName;
+        if (finalFileName) {
+          const nameWithoutExt = path.parse(finalFileName).name;
+          // Trim always outputs .mp3 currently
+          finalFileName = `${nameWithoutExt}.mp3`;
+        }
+
         const fileOpts = {
           source: processedPath,
-          ...(mediaData.fileName ? { filename: mediaData.fileName } : {}),
+          ...(finalFileName ? { filename: finalFileName } : {}),
         };
         await ctx.replyWithAudio(fileOpts as any, { caption: finalReport });
 

@@ -29,6 +29,7 @@ import {
   getMergeKeyboard,
 } from "../keyboards/qualityKeyboard";
 import fs from "fs";
+import path from "path";
 
 function formatSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(2);
@@ -265,8 +266,14 @@ export async function handleCallback(ctx: Context) {
             );
           } catch (err) {}
 
+          let mergeFileName = "merged_audio.mp3";
+          if (session.files.length > 0 && session.files[0].fileName) {
+            const nameWithoutExt = path.parse(session.files[0].fileName).name;
+            mergeFileName = `${nameWithoutExt}_merged.mp3`;
+          }
+
           await ctx.replyWithAudio(
-            { source: mergedPath },
+            { source: mergedPath, filename: mergeFileName },
             { caption: finalReport },
           );
 
@@ -508,9 +515,20 @@ export async function handleCallback(ctx: Context) {
           );
         } catch (err) {}
 
+        let finalFileName = mediaData.fileName;
+        if (finalFileName) {
+          const nameWithoutExt = path.parse(finalFileName).name;
+          if (operationType === "convert") {
+            finalFileName = `${nameWithoutExt}.${operationParam}`;
+          } else {
+            // For compress and trim, we always output .mp3 currently
+            finalFileName = `${nameWithoutExt}.mp3`;
+          }
+        }
+
         const fileOpts = {
           source: processedPath,
-          ...(mediaData.fileName ? { filename: mediaData.fileName } : {}),
+          ...(finalFileName ? { filename: finalFileName } : {}),
         };
         await ctx.replyWithAudio(fileOpts as any, { caption: finalReport });
 
