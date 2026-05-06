@@ -41,24 +41,35 @@ export async function handleTextInput(ctx: Context) {
   const trimStep = ctx.session?.trimStep;
   const timeInput = ctx.message.text;
 
-  if (trimStep === "start") {
-    const startTime = parseSingleTime(timeInput);
-    if (startTime === null) {
-      await ctx.reply(t("trim_invalid_time", userLang));
-      return;
-    }
-    // @ts-ignore
-    ctx.session.trimStart = startTime;
-    // @ts-ignore
-    ctx.session.trimStep = "end";
-    await ctx.reply(t("trim_enter_end", userLang));
-    return;
-  }
+  console.log(`[TrimLog] User: ${userId}, Step: ${trimStep}, Input: ${timeInput}`);
 
   let startSeconds = 0;
   let endSeconds = 0;
 
-  if (trimStep === "end") {
+  if (trimStep === "start") {
+    // Check if user entered a range like "1:40-3:50" directly
+    const rangeParsed = parseTimeInput(timeInput);
+    if (rangeParsed) {
+      [startSeconds, endSeconds] = rangeParsed;
+      // Clear session and proceed
+      // @ts-ignore
+      ctx.session.trimMode = null;
+      // @ts-ignore
+      ctx.session.trimStep = null;
+    } else {
+      const startTime = parseSingleTime(timeInput);
+      if (startTime === null) {
+        await ctx.reply(t("trim_invalid_time", userLang));
+        return;
+      }
+      // @ts-ignore
+      ctx.session.trimStart = startTime;
+      // @ts-ignore
+      ctx.session.trimStep = "end";
+      await ctx.reply(t("trim_enter_end", userLang));
+      return;
+    }
+  } else if (trimStep === "end") {
     const endTime = parseSingleTime(timeInput);
     if (endTime === null) {
       await ctx.reply(t("trim_invalid_time", userLang));

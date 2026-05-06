@@ -1,4 +1,4 @@
-import { Telegraf } from "telegraf";
+import { Telegraf, session } from "telegraf";
 import { config } from "dotenv";
 import { handleAudio } from "./handlers/mediaHandler";
 import { handleCallback } from "./handlers/callbackHandler";
@@ -29,6 +29,8 @@ const bot = new Telegraf(BOT_TOKEN, {
       }
     : {}),
 });
+
+bot.use(session());
 
 bot.start(async (ctx) => {
   const userId = ctx.from?.id;

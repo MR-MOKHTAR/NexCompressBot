@@ -95,7 +95,7 @@ export function parseSingleTime(input: string): number | null {
   const match = cleanInput.match(timeRegex);
 
   if (match) {
-    const hours = match[1] ? parseInt(match[1], 10) : 0;
+    const hours = match[1] && match[2] ? parseInt(match[1], 10) : 0;
     const minutes = match[2] ? parseInt(match[2], 10) : match[1] ? parseInt(match[1], 10) : 0;
     const seconds = parseInt(match[3], 10);
 
