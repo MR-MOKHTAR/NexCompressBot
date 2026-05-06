@@ -1,8 +1,16 @@
 import { Context } from "telegraf";
-import { getAudioKeyboard } from "../keyboards/qualityKeyboard";
-import { saveMedia } from "../utils/store";
+import {
+  getOperationMenu,
+  getMergeKeyboard,
+} from "../keyboards/qualityKeyboard";
+import {
+  saveMedia,
+  getActiveUserMergeSession,
+  addFileToMergeSession,
+} from "../utils/store";
 import { t } from "../i18n";
 import { getUserLang } from "../utils/db";
+import { Markup } from "telegraf";
 
 function formatSize(bytes: number | undefined): string {
   if (!bytes) return "0.00";
@@ -48,12 +56,52 @@ export async function handleAudio(ctx: Context) {
   const fileName = fileNameRaw;
   const shortId = saveMedia(fileId, "audio", fileName);
 
-  const msgText = t("select_audio_quality", userLang)
+  // Check if user has an active merge session
+  const activeMergeSession = getActiveUserMergeSession(userId);
+
+  if (activeMergeSession) {
+    // User is in merge mode, ask if they want to add this file
+    const addedSuccessfully = addFileToMergeSession(
+      activeMergeSession.sessionId,
+      fileId,
+      fileName,
+      durationMs,
+    );
+
+    if (addedSuccessfully) {
+      const msgText = t("merge_file_added", userLang)
+        .replace("{{count}}", (activeMergeSession.files.length + 1).toString())
+        .replace("{{size}}", size)
+        .replace("{{duration}}", duration);
+
+      await ctx.reply(msgText, {
+        reply_markup: Markup.inlineKeyboard([
+          [
+            Markup.button.callback("➕ Add Another", "merge_continue"),
+            Markup.button.callback(
+              "✅ Merge Now",
+              `m_go_${activeMergeSession.sessionId}`,
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "❌ Cancel",
+              `m_cancel_${activeMergeSession.sessionId}`,
+            ),
+          ],
+        ]).reply_markup,
+      });
+      return;
+    }
+  }
+
+  // Normal operation menu
+  const msgText = t("select_operation", userLang)
     .replace("{{size}}", size)
     .replace("{{duration}}", duration);
 
   await ctx.reply(msgText, {
-    reply_markup: getAudioKeyboard(shortId).reply_markup,
+    reply_markup: getOperationMenu(shortId).reply_markup,
     ...(ctx.message?.message_id
       ? { reply_parameters: { message_id: ctx.message.message_id } }
       : {}),

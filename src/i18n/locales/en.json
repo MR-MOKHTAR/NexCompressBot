@@ -1,12 +1,24 @@
 {
   "welcome": "Welcome! Please send an audio file.",
+  "select_operation": "Your file: {{size}} MB | Duration: {{duration}}\n\nPlease select an operation:",
+  "select_audio_quality": "Please select the desired audio quality:",
+  "select_format": "Please select the output format:",
+  "select_trim_option": "Please select a trim option or enter custom time:",
   "processing": "Processing...\n\n{{progress}}",
-  "select_audio_quality": "Your file: {{size}} MB | Duration: {{duration}}\n\nPlease select the desired audio quality:",
   "error_generic": "Sorry, an error occurred. Please try again.",
   "error_too_large": "The sent file is too large.",
-  "done_stats": "Processing complete!\n\nOriginal Size: {{oldSize}} MB\nNew Size: {{newSize}} MB\nYou saved {{savedPercent}}% in file size!",
+  "done_stats": "Compression complete!\n\nOriginal Size: {{oldSize}} MB\nNew Size: {{newSize}} MB\nYou saved {{savedPercent}}% in file size!",
+  "convert_done": "Format conversion complete!\n\nOutput Format: {{format}}\nFile Size: {{newSize}} MB",
+  "trim_done": "Trim complete!\n\nTrimmed File Size: {{newSize}} MB",
   "uploading": "Uploading file...",
   "select_language": "Please select your language:",
   "language_saved": "Your language has been saved successfully.",
-  "queued": "⏳ In queue...\nEstimated position: {{pos}}"
+  "queued": "⏳ In queue...\nEstimated position: {{pos}}",
+  "trim_enter_time": "Please enter the trim time range in MM:SS-MM:SS format.\nExample: 1:30-2:45 (from 1 minute 30 seconds to 2 minutes 45 seconds)",
+  "trim_invalid_time": "Invalid time format. Please use MM:SS-MM:SS (e.g., 1:30-2:45)",
+  "merge_start_session": "🔗 Merge session started. Send audio files to add them to the merge. Once you've sent all files, click 'Merge Now'.",
+  "merge_session_exists": "📌 You have an active merge session with {{count}} file(s). Send another file to add it, or use 'Merge Now' button.",
+  "merge_file_added": "✅ File added to merge session!\n\nFile: {{size}} MB | Duration: {{duration}}\nTotal files in session: {{count}}",
+  "merge_done": "Merge complete!\n\nMerged {{fileCount}} audio files\nTotal Duration: {{duration}}\nFile Size: {{newSize}} MB",
+  "merge_canceled": "Merge session canceled."
 }

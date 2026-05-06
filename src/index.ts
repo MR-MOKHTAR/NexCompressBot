@@ -2,6 +2,7 @@ import { Telegraf } from "telegraf";
 import { config } from "dotenv";
 import { handleAudio } from "./handlers/mediaHandler";
 import { handleCallback } from "./handlers/callbackHandler";
+import { handleTextInput } from "./handlers/textHandler";
 import { t } from "./i18n";
 import { initDb, getUserLang } from "./utils/db";
 import { getLanguageKeyboard } from "./keyboards/qualityKeyboard";
@@ -51,6 +52,8 @@ bot.command("lang", async (ctx) => {
 bot.on(["audio", "voice"], handleAudio);
 
 bot.on("callback_query", handleCallback);
+
+bot.on("text", handleTextInput);
 
 // Catch errors
 bot.catch(async (err, ctx) => {
