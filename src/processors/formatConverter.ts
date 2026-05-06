@@ -25,43 +25,43 @@ const formatConfigs: Record<AudioFormat, FormatConfig> = {
     codec: "libmp3lame",
     extension: "mp3",
     container: "mp3",
-    additionalArgs: ["-q:a", "2"], // VBR quality (2=high)
+    additionalArgs: ["-q:a", "5"], // VBR quality (~130 kbps)
   },
   aac: {
     codec: "aac",
     extension: "aac",
     container: "aac",
-    additionalArgs: ["-b:a", "192k"],
+    additionalArgs: ["-b:a", "128k"],
   },
   opus: {
     codec: "libopus",
     extension: "opus",
     container: "ogg",
-    additionalArgs: ["-b:a", "128k"],
+    additionalArgs: ["-b:a", "96k"],
   },
   ogg: {
     codec: "libvorbis",
     extension: "ogg",
     container: "ogg",
-    additionalArgs: ["-q:a", "6"], // VBR quality
+    additionalArgs: ["-q:a", "4"], // VBR quality (~128 kbps)
   },
   m4a: {
     codec: "aac",
     extension: "m4a",
     container: "ipod",
-    additionalArgs: ["-b:a", "192k"],
+    additionalArgs: ["-b:a", "128k"],
   },
   mp4: {
     codec: "aac",
     extension: "mp4",
     container: "mp4",
-    additionalArgs: ["-b:a", "192k"],
+    additionalArgs: ["-b:a", "128k"],
   },
   wma: {
     codec: "wmav2",
     extension: "wma",
     container: "asf",
-    additionalArgs: ["-b:a", "192k"],
+    additionalArgs: ["-b:a", "128k"],
   },
   amr: {
     codec: "libopencore_amrnb",
