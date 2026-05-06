@@ -5,6 +5,7 @@ import {
   trimAudio,
   getAudioDuration,
   parseTimeInput,
+  parseSingleTime,
 } from "../processors/audioTrimmer";
 import { t } from "../i18n";
 import { getUserLang } from "../utils/db";
@@ -34,33 +35,72 @@ export async function handleTextInput(ctx: Context) {
 
   // @ts-ignore
   const trimMode = ctx.session?.trimMode;
+  if (!trimMode) return;
 
-  if (!trimMode) {
-    // Not in trim mode, ignore text input
+  // @ts-ignore
+  const trimStep = ctx.session?.trimStep;
+  const timeInput = ctx.message.text;
+
+  if (trimStep === "start") {
+    const startTime = parseSingleTime(timeInput);
+    if (startTime === null) {
+      await ctx.reply(t("trim_invalid_time", userLang));
+      return;
+    }
+    // @ts-ignore
+    ctx.session.trimStart = startTime;
+    // @ts-ignore
+    ctx.session.trimStep = "end";
+    await ctx.reply(t("trim_enter_end", userLang));
     return;
   }
 
-  const timeInput = ctx.message.text;
-  const timeParsed = parseTimeInput(timeInput);
+  let startSeconds = 0;
+  let endSeconds = 0;
 
-  if (!timeParsed) {
-    await ctx.reply(t("trim_invalid_time", userLang));
-    return;
+  if (trimStep === "end") {
+    const endTime = parseSingleTime(timeInput);
+    if (endTime === null) {
+      await ctx.reply(t("trim_invalid_time", userLang));
+      return;
+    }
+    // @ts-ignore
+    startSeconds = ctx.session.trimStart || 0;
+    endSeconds = endTime;
+
+    if (endSeconds <= startSeconds) {
+      await ctx.reply(t("trim_invalid_time", userLang));
+      return;
+    }
+
+    // Clear trim session
+    // @ts-ignore
+    ctx.session.trimMode = null;
+    // @ts-ignore
+    ctx.session.trimStep = null;
+    // @ts-ignore
+    ctx.session.trimStart = null;
+  } else {
+    // Fallback for old "MM:SS-MM:SS" format if trimStep wasn't set (unlikely but safe)
+    const timeParsed = parseTimeInput(timeInput);
+
+    if (!timeParsed) {
+      await ctx.reply(t("trim_invalid_time", userLang));
+      return;
+    }
+
+    [startSeconds, endSeconds] = timeParsed;
+
+    // Clear trim mode
+    // @ts-ignore
+    ctx.session.trimMode = null;
   }
 
   const mediaData = getMedia(trimMode);
   if (!mediaData) {
     await ctx.reply(t("error_generic", userLang));
-    // @ts-ignore
-    ctx.session.trimMode = null;
     return;
   }
-
-  // Clear trim mode
-  // @ts-ignore
-  ctx.session.trimMode = null;
-
-  const [startSeconds, endSeconds] = timeParsed;
   const queuePos = processingQueue.getQueueLength();
 
   let initialText = "";

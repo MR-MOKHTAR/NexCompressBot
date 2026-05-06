@@ -104,7 +104,7 @@ export async function handleCallback(ctx: Context) {
 
           // @ts-ignore
           await ctx.editMessageText(t("select_trim_option", userLang), {
-            reply_markup: getTrimKeyboard(shortId, duration).reply_markup,
+            reply_markup: getTrimKeyboard(shortId, duration, userLang).reply_markup,
           });
         } catch (err) {
           console.error("Error getting audio duration:", err);
@@ -335,11 +335,13 @@ export async function handleCallback(ctx: Context) {
 
   // Handle custom trim input (requires text input from user)
   if (operationType === "trim" && operationParam === "custom") {
-    await ctx.reply(t("trim_enter_time", userLang));
+    await ctx.reply(t("trim_enter_start", userLang));
     // @ts-ignore
     ctx.session = ctx.session || {};
     // @ts-ignore
     ctx.session.trimMode = shortId;
+    // @ts-ignore
+    ctx.session.trimStep = "start";
     return;
   }
 
@@ -446,11 +448,23 @@ export async function handleCallback(ctx: Context) {
           } else if (operationParam === "first30") {
             startSeconds = 0;
             endSeconds = Math.min(30, duration);
+          } else if (operationParam === "first60") {
+            startSeconds = 0;
+            endSeconds = Math.min(60, duration);
+          } else if (operationParam === "first120") {
+            startSeconds = 0;
+            endSeconds = Math.min(120, duration);
           } else if (operationParam === "last10") {
             startSeconds = Math.max(0, duration - 10);
             endSeconds = duration;
           } else if (operationParam === "last30") {
             startSeconds = Math.max(0, duration - 30);
+            endSeconds = duration;
+          } else if (operationParam === "last60") {
+            startSeconds = Math.max(0, duration - 60);
+            endSeconds = duration;
+          } else if (operationParam === "last120") {
+            startSeconds = Math.max(0, duration - 120);
             endSeconds = duration;
           }
 

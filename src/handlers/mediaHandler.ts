@@ -101,7 +101,7 @@ export async function handleAudio(ctx: Context) {
     .replace("{{duration}}", duration);
 
   await ctx.reply(msgText, {
-    reply_markup: getOperationMenu(shortId).reply_markup,
+    reply_markup: getOperationMenu(shortId, userLang).reply_markup,
     ...(ctx.message?.message_id
       ? { reply_parameters: { message_id: ctx.message.message_id } }
       : {}),

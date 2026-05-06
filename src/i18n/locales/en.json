@@ -20,5 +20,16 @@
   "merge_session_exists": "📌 You have an active merge session with {{count}} file(s). Send another file to add it, or use 'Merge Now' button.",
   "merge_file_added": "✅ File added to merge session!\n\nFile: {{size}} MB | Duration: {{duration}}\nTotal files in session: {{count}}",
   "merge_done": "Merge complete!\n\nMerged {{fileCount}} audio files\nTotal Duration: {{duration}}\nFile Size: {{newSize}} MB",
-  "merge_canceled": "Merge session canceled."
+  "merge_canceled": "Merge session canceled.",
+  "trim_1min_first": "First 1 minute",
+  "trim_2min_first": "First 2 minutes",
+  "trim_1min_last": "Last 1 minute",
+  "trim_2min_last": "Last 2 minutes",
+  "trim_custom": "Custom Amount",
+  "trim_enter_start": "Please enter start time (e.g., 1:30 or 90):",
+  "trim_enter_end": "Please enter end time (e.g., 2:45 or 165):",
+  "op_compress": "🗜️ Compress",
+  "op_convert": "🎵 Convert",
+  "op_trim": "✂️ Trim",
+  "op_merge": "🔗 Merge"
 }

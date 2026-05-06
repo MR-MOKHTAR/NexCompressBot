@@ -1,14 +1,15 @@
 import { Markup } from "telegraf";
+import { t } from "../i18n";
 
-export function getOperationMenu(shortId: string) {
+export function getOperationMenu(shortId: string, lang: string) {
   return Markup.inlineKeyboard([
     [
-      Markup.button.callback("🗜️ Compress", `op_compress_${shortId}`),
-      Markup.button.callback("🎵 Convert", `op_convert_${shortId}`),
+      Markup.button.callback(t("op_compress", lang), `op_compress_${shortId}`),
+      Markup.button.callback(t("op_convert", lang), `op_convert_${shortId}`),
     ],
     [
-      Markup.button.callback("✂️ Trim", `op_trim_${shortId}`),
-      Markup.button.callback("🔗 Merge", `op_merge_${shortId}`),
+      Markup.button.callback(t("op_trim", lang), `op_trim_${shortId}`),
+      Markup.button.callback(t("op_merge", lang), `op_merge_${shortId}`),
     ],
   ]);
 }
@@ -47,35 +48,53 @@ export function getFormatKeyboard(shortId: string) {
   ]);
 }
 
-export function getTrimKeyboard(shortId: string, fileDurationSeconds: number) {
+export function getTrimKeyboard(
+  shortId: string,
+  fileDurationSeconds: number,
+  lang: string,
+) {
   const buttons: any[] = [];
 
-  // First row: presets for first N seconds
-  buttons.push([
-    Markup.button.callback("First 10s", `t_first10_${shortId}`),
+  // First row: 1st and 2nd minute first
+  const firstRow = [];
+  if (fileDurationSeconds > 60) {
+    firstRow.push(
+      Markup.button.callback(t("trim_1min_first", lang), `t_first60_${shortId}`),
+    );
+  }
+  if (fileDurationSeconds > 120) {
+    firstRow.push(
+      Markup.button.callback(t("trim_2min_first", lang), `t_first120_${shortId}`),
+    );
+  }
+  if (firstRow.length > 0) buttons.push(firstRow);
+
+  // Second row: 1st and 2nd minute last
+  const secondRow = [];
+  if (fileDurationSeconds > 60) {
+    secondRow.push(
+      Markup.button.callback(t("trim_1min_last", lang), `t_last60_${shortId}`),
+    );
+  }
+  if (fileDurationSeconds > 120) {
+    secondRow.push(
+      Markup.button.callback(t("trim_2min_last", lang), `t_last120_${shortId}`),
+    );
+  }
+  if (secondRow.length > 0) buttons.push(secondRow);
+
+  // Third row: original presets (optional, keeping for backward compatibility or variety)
+  const thirdRow = [
     Markup.button.callback("First 30s", `t_first30_${shortId}`),
-  ]);
-
-  // Second row: presets for last N seconds (only if file is long enough)
-  const secondRowButtons = [];
-  if (fileDurationSeconds > 10) {
-    secondRowButtons.push(
-      Markup.button.callback("Last 10s", `t_last10_${shortId}`),
-    );
-  }
+  ];
   if (fileDurationSeconds > 30) {
-    secondRowButtons.push(
-      Markup.button.callback("Last 30s", `t_last30_${shortId}`),
-    );
+    thirdRow.push(Markup.button.callback("Last 30s", `t_last30_${shortId}`));
   }
+  buttons.push(thirdRow);
 
-  if (secondRowButtons.length > 0) {
-    buttons.push(secondRowButtons);
-  }
-
-  // Third row: custom time input button
+  // Fourth row: custom time input button
   buttons.push([
-    Markup.button.callback("Custom Time Input", `t_custom_${shortId}`),
+    Markup.button.callback(t("trim_custom", lang), `t_custom_${shortId}`),
   ]);
 
   return Markup.inlineKeyboard(buttons);
