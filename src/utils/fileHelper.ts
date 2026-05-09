@@ -18,7 +18,13 @@ export async function downloadFile(
   const filePath = path.join(TMP_DIR, `${uuidv4()}${extension}`);
 
   if (url.startsWith("file://")) {
-    const sourcePath = fileURLToPath(url);
+    let sourcePath = fileURLToPath(url);
+    if (sourcePath.startsWith("/var/lib/telegram-bot-api")) {
+      sourcePath = sourcePath.replace(
+        "/var/lib/telegram-bot-api",
+        process.env.BOT_API_DATA_DIR || "/home/mtr/telegram-bot-api/data"
+      );
+    }
     fs.copyFileSync(sourcePath, filePath);
     return filePath;
   }
