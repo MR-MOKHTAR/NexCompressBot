@@ -19,10 +19,16 @@ export async function downloadFile(
 
   if (url.startsWith("file://")) {
     let sourcePath = fileURLToPath(url);
-    if (sourcePath.startsWith("/var/lib/telegram-bot-api")) {
+    if (process.env.BOT_API_DATA_DIR) {
+      const match = sourcePath.match(/(\d+:[A-Za-z0-9_-]+)\//);
+      if (match) {
+        const relativePath = sourcePath.substring(sourcePath.indexOf(match[1]));
+        sourcePath = path.join(process.env.BOT_API_DATA_DIR, relativePath);
+      }
+    } else if (sourcePath.startsWith("/var/lib/telegram-bot-api")) {
       sourcePath = sourcePath.replace(
         "/var/lib/telegram-bot-api",
-        process.env.BOT_API_DATA_DIR || "/home/mtr/telegram-bot-api/data"
+        "/home/mtr/telegram-bot-api/data"
       );
     }
     fs.copyFileSync(sourcePath, filePath);
