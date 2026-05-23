@@ -6,6 +6,7 @@ import {
   getAudioDuration,
   parseTimeInput,
   parseSingleTime,
+  formatDuration,
 } from "../processors/audioTrimmer";
 import { t } from "../i18n";
 import { getUserLang } from "../utils/db";
@@ -26,6 +27,34 @@ function formatSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(2);
 }
 
+/**
+ * Get the proper download extension based on mimeType or fileName
+ */
+function getDownloadExtension(fileName?: string, mimeType?: string): string {
+  if (fileName) {
+    const ext = path.extname(fileName);
+    if (ext) return ext;
+  }
+  if (mimeType) {
+    const mimeMap: Record<string, string> = {
+      "audio/mpeg": ".mp3",
+      "audio/mp3": ".mp3",
+      "audio/ogg": ".ogg",
+      "audio/opus": ".ogg",
+      "audio/x-opus+ogg": ".ogg",
+      "audio/aac": ".aac",
+      "audio/mp4": ".m4a",
+      "audio/x-m4a": ".m4a",
+      "audio/wav": ".wav",
+      "audio/x-wav": ".wav",
+      "audio/flac": ".flac",
+      "audio/x-flac": ".flac",
+    };
+    return mimeMap[mimeType] || ".mp3";
+  }
+  return ".mp3";
+}
+
 export async function handleTextInput(ctx: Context) {
   const userId = ctx.from?.id;
   if (!userId || !ctx.message || !("text" in ctx.message)) return;
@@ -41,7 +70,9 @@ export async function handleTextInput(ctx: Context) {
   const trimStep = ctx.session?.trimStep;
   const timeInput = ctx.message.text;
 
-  console.log(`[TrimLog] User: ${userId}, Step: ${trimStep}, Input: ${timeInput}`);
+  console.log(
+    `[TrimLog] User: ${userId}, Step: ${trimStep}, Input: ${timeInput}`,
+  );
 
   let startSeconds = 0;
   let endSeconds = 0;
@@ -92,7 +123,7 @@ export async function handleTextInput(ctx: Context) {
     // @ts-ignore
     ctx.session.trimStart = null;
   } else {
-    // Fallback for old "MM:SS-MM:SS" format if trimStep wasn't set (unlikely but safe)
+    // Fallback for old "MM:SS-MM:SS" format
     const timeParsed = parseTimeInput(timeInput);
 
     if (!timeParsed) {
@@ -169,8 +200,9 @@ export async function handleTextInput(ctx: Context) {
       };
 
       try {
+        const ext = getDownloadExtension(mediaData.fileName, mediaData.mimeType);
         const fileUrl = await ctx.telegram.getFileLink(mediaData.fileId);
-        downloadedPath = await downloadFile(fileUrl.href, ".mp3");
+        downloadedPath = await downloadFile(fileUrl.href, ext);
 
         await handleProgress(10);
 
@@ -206,11 +238,13 @@ export async function handleTextInput(ctx: Context) {
           throw new Error("Download or processing failed");
         }
 
+        const oldBytes = fs.statSync(downloadedPath).size;
         const newBytes = fs.statSync(processedPath).size;
-        const finalReport = t("trim_done", userLang).replace(
-          "{{newSize}}",
-          formatSize(newBytes),
-        );
+        const trimmedDuration = await getAudioDuration(processedPath);
+        const finalReport = t("trim_done", userLang)
+          .replace("{{oldSize}}", formatSize(oldBytes))
+          .replace("{{newSize}}", formatSize(newBytes))
+          .replace("{{duration}}", formatDuration(trimmedDuration));
 
         try {
           await ctx.telegram.editMessageText(
@@ -224,19 +258,25 @@ export async function handleTextInput(ctx: Context) {
         let finalFileName = mediaData.fileName;
         if (finalFileName) {
           const nameWithoutExt = path.parse(finalFileName).name;
-          // Trim always outputs .mp3 currently
           finalFileName = `${nameWithoutExt}.mp3`;
         }
 
+        // Send audio without caption
         const fileOpts = {
           source: processedPath,
           ...(finalFileName ? { filename: finalFileName } : {}),
         };
-        await ctx.replyWithAudio(fileOpts as any, { caption: finalReport });
+        await ctx.replyWithAudio(fileOpts as any);
 
-        await ctx.telegram
-          .deleteMessage(ctx.chat!.id, processingMsg.message_id)
-          .catch(() => {});
+        // Update processing message with the final report (details in text)
+        try {
+          await ctx.telegram.editMessageText(
+            ctx.chat!.id,
+            processingMsg.message_id,
+            undefined,
+            finalReport,
+          );
+        } catch (err) {}
       } catch (error) {
         console.error("Processing error:", error);
         await ctx.reply(t("error_generic", userLang));

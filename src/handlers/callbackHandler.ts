@@ -1,24 +1,14 @@
 import { Context } from "telegraf";
-import {
-  getMedia,
-  getActiveUserMergeSession,
-  getMergeSession,
-  deleteMergeSession,
-  createMergeSession,
-} from "../utils/store";
+import { getMedia } from "../utils/store";
 import { downloadFile, cleanupFiles } from "../utils/fileHelper";
 import { processAudio } from "../processors/audioProcessor";
-import { convertAudio } from "../processors/formatConverter";
+import { convertAudio, isVoiceFormat } from "../processors/formatConverter";
+import type { AudioFormat } from "../processors/formatConverter";
 import {
   trimAudio,
   getAudioDuration,
   parseTimeInput,
 } from "../processors/audioTrimmer";
-import {
-  mergeAudios,
-  getTotalDuration,
-  formatDuration,
-} from "../processors/audioMerger";
 import { t } from "../i18n";
 import { getUserLang, setUserLang } from "../utils/db";
 import { processingQueue } from "../utils/queueManager";
@@ -26,7 +16,6 @@ import {
   getAudioKeyboard,
   getFormatKeyboard,
   getTrimKeyboard,
-  getMergeKeyboard,
 } from "../keyboards/qualityKeyboard";
 import fs from "fs";
 import path from "path";
@@ -42,6 +31,46 @@ function buildProgressBar(percent: number): string {
   const filledBars = Math.round((percent / 100) * totalBars);
   const emptyBars = totalBars - filledBars;
   return `[${"█".repeat(filledBars)}${"░".repeat(emptyBars)}] ${percent}%`;
+}
+
+/**
+ * Get the proper download extension based on mimeType or fileName
+ */
+function getDownloadExtension(fileName?: string, mimeType?: string): string {
+  // Try to extract from fileName first
+  if (fileName) {
+    const ext = path.extname(fileName);
+    if (ext) return ext;
+  }
+  // Fallback from mimeType
+  if (mimeType) {
+    const mimeMap: Record<string, string> = {
+      "audio/mpeg": ".mp3",
+      "audio/mp3": ".mp3",
+      "audio/ogg": ".ogg",
+      "audio/opus": ".ogg",
+      "audio/x-opus+ogg": ".ogg",
+      "audio/aac": ".aac",
+      "audio/mp4": ".m4a",
+      "audio/x-m4a": ".m4a",
+      "audio/wav": ".wav",
+      "audio/x-wav": ".wav",
+      "audio/flac": ".flac",
+      "audio/x-flac": ".flac",
+    };
+    return mimeMap[mimeType] || ".mp3";
+  }
+  return ".mp3";
+}
+
+function formatDurationReadable(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
 }
 
 export async function handleCallback(ctx: Context) {
@@ -97,204 +126,23 @@ export async function handleCallback(ctx: Context) {
       } else if (operationType === "trim") {
         // Get audio duration for adaptive trim keyboard
         try {
+          const ext = getDownloadExtension(mediaData.fileName, mediaData.mimeType);
           const fileUrl = await ctx.telegram.getFileLink(mediaData.fileId);
-          const tempFile = await downloadFile(fileUrl.href, ".mp3");
+          const tempFile = await downloadFile(fileUrl.href, ext);
           const duration = await getAudioDuration(tempFile);
           cleanupFiles(tempFile);
 
           // @ts-ignore
           await ctx.editMessageText(t("select_trim_option", userLang), {
-            reply_markup: getTrimKeyboard(shortId, duration, userLang).reply_markup,
+            reply_markup: getTrimKeyboard(shortId, duration, userLang)
+              .reply_markup,
           });
         } catch (err) {
           console.error("Error getting audio duration:", err);
           await ctx.reply(t("error_generic", userLang));
         }
-      } else if (operationType === "merge") {
-        const activeSession = getActiveUserMergeSession(userId);
-        if (activeSession) {
-          // Session exists, create a new one
-          const newSessionId = createMergeSession(userId);
-          await ctx.answerCbQuery();
-          await ctx.reply(t("merge_start_session", userLang));
-        } else {
-          // No session exists, create one
-          const sessionId = createMergeSession(userId);
-          await ctx.answerCbQuery();
-          await ctx.reply(t("merge_start_session", userLang));
-        }
       }
     }
-    return;
-  }
-
-  // Handle merge continue callback
-  if (data === "merge_continue") {
-    await ctx.answerCbQuery();
-    await ctx.deleteMessage();
-    // User will send next file, no action needed
-    return;
-  }
-
-  // Handle merge cancel callback
-  if (data.startsWith("m_cancel_")) {
-    const sessionId = data.replace("m_cancel_", "");
-    const session = getMergeSession(sessionId);
-
-    if (session && session.userId === userId) {
-      deleteMergeSession(sessionId);
-      await ctx.answerCbQuery();
-      await ctx.editMessageText(t("merge_canceled", userLang));
-    } else {
-      await ctx.answerCbQuery(t("error_generic", userLang), {
-        show_alert: true,
-      });
-    }
-    return;
-  }
-
-  // Handle merge execution callback
-  if (data.startsWith("m_go_")) {
-    const sessionId = data.replace("m_go_", "");
-    const session = getMergeSession(sessionId);
-
-    if (!session || session.userId !== userId || session.files.length < 2) {
-      await ctx.answerCbQuery(t("error_generic", userLang), {
-        show_alert: true,
-      });
-      return;
-    }
-
-    await ctx.answerCbQuery();
-
-    const queuePos = processingQueue.getQueueLength();
-    let initialText = "";
-    if (queuePos > 0) {
-      initialText = t("queued", userLang).replace(
-        "{{pos}}",
-        queuePos.toString(),
-      );
-    } else {
-      initialText = t("processing", userLang).replace(
-        "{{progress}}",
-        buildProgressBar(0),
-      );
-    }
-
-    const processingMsg = await ctx.reply(initialText);
-
-    processingQueue.enqueue({
-      userId,
-      operationType: "merge",
-      execute: async () => {
-        if (queuePos > 0) {
-          const text = t("processing", userLang).replace(
-            "{{progress}}",
-            buildProgressBar(0),
-          );
-          try {
-            await ctx.telegram.editMessageText(
-              ctx.chat!.id,
-              processingMsg.message_id,
-              undefined,
-              text,
-            );
-          } catch (err) {}
-        }
-
-        const filePaths: string[] = [];
-        let lastUpdateTime = Date.now();
-
-        const handleProgress = async (percent: number) => {
-          const now = Date.now();
-          if (now - lastUpdateTime > 2000) {
-            lastUpdateTime = now;
-            const updatedText = t("processing", userLang).replace(
-              "{{progress}}",
-              buildProgressBar(percent),
-            );
-            try {
-              await ctx.telegram.editMessageText(
-                ctx.chat!.id,
-                processingMsg.message_id,
-                undefined,
-                updatedText,
-              );
-            } catch (err) {}
-          }
-        };
-
-        try {
-          // Download all files
-          for (const file of session.files) {
-            const fileUrl = await ctx.telegram.getFileLink(file.fileId);
-            const filePath = await downloadFile(fileUrl.href, ".mp3");
-            filePaths.push(filePath);
-          }
-
-          await handleProgress(10);
-
-          // Merge all files
-          const mergedPath = await mergeAudios(filePaths, handleProgress);
-
-          const finalText = t("processing", userLang).replace(
-            "{{progress}}",
-            buildProgressBar(100),
-          );
-          try {
-            await ctx.telegram.editMessageText(
-              ctx.chat!.id,
-              processingMsg.message_id,
-              undefined,
-              finalText,
-            );
-          } catch (err) {}
-
-          const mergedSize = fs.statSync(mergedPath).size;
-          const totalDur = await getTotalDuration(filePaths);
-          const finalReport = t("merge_done", userLang)
-            .replace("{{fileCount}}", session.files.length.toString())
-            .replace("{{duration}}", formatDuration(totalDur))
-            .replace("{{newSize}}", formatSize(mergedSize));
-
-          try {
-            await ctx.telegram.editMessageText(
-              ctx.chat!.id,
-              processingMsg.message_id,
-              undefined,
-              t("uploading", userLang),
-            );
-          } catch (err) {}
-
-          let mergeFileName = "merged_audio.mp3";
-          if (session.files.length > 0 && session.files[0].fileName) {
-            const nameWithoutExt = path.parse(session.files[0].fileName).name;
-            mergeFileName = `${nameWithoutExt}_merged.mp3`;
-          }
-
-          await ctx.replyWithAudio(
-            { source: mergedPath, filename: mergeFileName },
-            { caption: finalReport },
-          );
-
-          await ctx.telegram
-            .deleteMessage(ctx.chat!.id, processingMsg.message_id)
-            .catch(() => {});
-
-          // Cleanup session
-          deleteMergeSession(sessionId);
-        } catch (error) {
-          console.error("Merge error:", error);
-          await ctx.reply(t("error_generic", userLang));
-          deleteMergeSession(sessionId);
-        } finally {
-          // Cleanup downloaded files
-          for (const filePath of filePaths) {
-            cleanupFiles(filePath);
-          }
-        }
-      },
-    });
     return;
   }
 
@@ -314,7 +162,7 @@ export async function handleCallback(ctx: Context) {
   await ctx.answerCbQuery();
 
   // Determine operation type and parameters from callback data
-  let operationType: "compress" | "convert" | "trim" | "merge" = "compress";
+  let operationType: "compress" | "convert" | "trim" = "compress";
   let operationParam = "";
 
   if (typeCode === "a") {
@@ -324,11 +172,11 @@ export async function handleCallback(ctx: Context) {
   } else if (typeCode === "c") {
     // Format conversion: c_mp3_shortId
     operationType = "convert";
-    operationParam = parts[1]; // format (e.g., "mp3")
+    operationParam = parts[1]; // format (e.g., "mp3", "voice")
   } else if (typeCode === "t") {
     // Trim: t_first30_shortId or t_custom_shortId
     operationType = "trim";
-    operationParam = parts[1]; // trim type (e.g., "first30", "last10", "custom")
+    operationParam = parts[1]; // trim type (e.g., "first30", "last10", "custom", "half1", "half2")
   } else {
     return; // Unknown operation
   }
@@ -415,13 +263,14 @@ export async function handleCallback(ctx: Context) {
       };
 
       try {
+        const ext = getDownloadExtension(mediaData.fileName, mediaData.mimeType);
         const fileUrl = await ctx.telegram.getFileLink(mediaData.fileId);
 
-        // Download
-        downloadedPath = await downloadFile(fileUrl.href, ".mp3");
+        // Download with proper extension
+        downloadedPath = await downloadFile(fileUrl.href, ext);
 
         // Ensure it updates processing status during a long task
-        await handleProgress(10); // Start processing immediately after download finishes
+        await handleProgress(10);
 
         // Process based on operation type
         if (operationType === "compress") {
@@ -433,14 +282,14 @@ export async function handleCallback(ctx: Context) {
         } else if (operationType === "convert") {
           processedPath = await convertAudio(
             downloadedPath!,
-            operationParam as any, // format
+            operationParam as AudioFormat,
             handleProgress,
           );
         } else if (operationType === "trim") {
           // Calculate start and end times based on trim type
           const duration = await getAudioDuration(downloadedPath!);
           let startSeconds = 0;
-          let endSeconds = Math.min(30, duration); // Default to first 30 or less
+          let endSeconds = Math.min(30, duration);
 
           if (operationParam === "first10") {
             startSeconds = 0;
@@ -465,6 +314,12 @@ export async function handleCallback(ctx: Context) {
             endSeconds = duration;
           } else if (operationParam === "last120") {
             startSeconds = Math.max(0, duration - 120);
+            endSeconds = duration;
+          } else if (operationParam === "half1") {
+            startSeconds = 0;
+            endSeconds = Math.floor(duration / 2);
+          } else if (operationParam === "half2") {
+            startSeconds = Math.floor(duration / 2);
             endSeconds = duration;
           }
 
@@ -502,24 +357,29 @@ export async function handleCallback(ctx: Context) {
             ? (((oldBytes - newBytes) / oldBytes) * 100).toFixed(1)
             : "0.0";
 
+        // Build the final report text
         let finalReport = "";
         if (operationType === "compress") {
           finalReport = t("done_stats", userLang)
             .replace("{{oldSize}}", formatSize(oldBytes))
             .replace("{{newSize}}", formatSize(newBytes))
-            .replace("{{savedPercent}}", savedPercent);
+            .replace("{{savedPercent}}", savedPercent)
+            .replace("{{quality}}", operationParam);
         } else if (operationType === "convert") {
+          const formatLabel = operationParam === "voice" ? "Voice (OGG Opus)" : operationParam.toUpperCase();
           finalReport = t("convert_done", userLang)
-            .replace("{{format}}", operationParam.toUpperCase())
+            .replace("{{format}}", formatLabel)
+            .replace("{{oldSize}}", formatSize(oldBytes))
             .replace("{{newSize}}", formatSize(newBytes));
         } else if (operationType === "trim") {
-          finalReport = t("trim_done", userLang).replace(
-            "{{newSize}}",
-            formatSize(newBytes),
-          );
+          const duration = await getAudioDuration(processedPath);
+          finalReport = t("trim_done", userLang)
+            .replace("{{oldSize}}", formatSize(oldBytes))
+            .replace("{{newSize}}", formatSize(newBytes))
+            .replace("{{duration}}", formatDurationReadable(duration));
         }
 
-        // Determine upload method
+        // Update processing message to "uploading"
         try {
           await ctx.telegram.editMessageText(
             ctx.chat!.id,
@@ -529,27 +389,43 @@ export async function handleCallback(ctx: Context) {
           );
         } catch (err) {}
 
+        // Determine file name for output
         let finalFileName = mediaData.fileName;
         if (finalFileName) {
           const nameWithoutExt = path.parse(finalFileName).name;
           if (operationType === "convert") {
-            finalFileName = `${nameWithoutExt}.${operationParam}`;
+            if (operationParam === "voice") {
+              finalFileName = `${nameWithoutExt}.ogg`;
+            } else {
+              finalFileName = `${nameWithoutExt}.${operationParam}`;
+            }
           } else {
-            // For compress and trim, we always output .mp3 currently
             finalFileName = `${nameWithoutExt}.mp3`;
           }
         }
 
-        const fileOpts = {
-          source: processedPath,
-          ...(finalFileName ? { filename: finalFileName } : {}),
-        };
-        await ctx.replyWithAudio(fileOpts as any, { caption: finalReport });
+        // Send the file based on format type
+        if (operationType === "convert" && isVoiceFormat(operationParam)) {
+          // Voice: use sendVoice (no caption, no filename)
+          await ctx.replyWithVoice({ source: processedPath });
+        } else {
+          // Audio: send without caption
+          const fileOpts = {
+            source: processedPath,
+            ...(finalFileName ? { filename: finalFileName } : {}),
+          };
+          await ctx.replyWithAudio(fileOpts as any);
+        }
 
-        // Cleanup message
-        await ctx.telegram
-          .deleteMessage(ctx.chat!.id, processingMsg.message_id)
-          .catch(() => {});
+        // Update processing message with the final report (details in text)
+        try {
+          await ctx.telegram.editMessageText(
+            ctx.chat!.id,
+            processingMsg.message_id,
+            undefined,
+            finalReport,
+          );
+        } catch (err) {}
       } catch (error) {
         console.error("Processing error:", error);
         await ctx.reply(t("error_generic", userLang));

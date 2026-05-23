@@ -17,6 +17,10 @@ export async function processAudio(
     ffmpeg(inputPath)
       .audioCodec("libmp3lame")
       .audioBitrate(bitrate)
+      .outputOptions([
+        "-map_metadata", "0",     // Preserve original metadata (title, artist, album)
+        "-id3v2_version", "3",    // Preserve ID3v2 tags
+      ])
       .on("progress", (progress) => {
         if (progress.percent && onProgress) {
           onProgress(Math.round(progress.percent));

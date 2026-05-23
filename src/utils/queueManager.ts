@@ -1,6 +1,6 @@
 export type TaskDefinition = {
   userId: number;
-  operationType: "compress" | "convert" | "trim" | "merge";
+  operationType: "compress" | "convert" | "trim";
   execute: () => Promise<void>;
   onProgress?: (percent: number) => void;
 };

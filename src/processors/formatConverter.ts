@@ -2,16 +2,15 @@ import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 import path from "path";
 
-type AudioFormat =
+export type AudioFormat =
   | "mp3"
   | "aac"
   | "opus"
   | "ogg"
   | "m4a"
-  | "mp4"
-  | "wma"
-  | "amr"
-  | "3gp";
+  | "wav"
+  | "flac"
+  | "voice";
 
 interface FormatConfig {
   codec: string;
@@ -25,55 +24,50 @@ const formatConfigs: Record<AudioFormat, FormatConfig> = {
     codec: "libmp3lame",
     extension: "mp3",
     container: "mp3",
-    additionalArgs: ["-q:a", "5"], // VBR quality (~130 kbps)
+    additionalArgs: ["-q:a", "2", "-map_metadata", "0", "-id3v2_version", "3"],
   },
   aac: {
     codec: "aac",
     extension: "aac",
-    container: "aac",
-    additionalArgs: ["-b:a", "128k"],
+    container: "adts",
+    additionalArgs: ["-b:a", "128k", "-map_metadata", "0"],
   },
   opus: {
     codec: "libopus",
     extension: "opus",
     container: "ogg",
-    additionalArgs: ["-b:a", "96k"],
+    additionalArgs: ["-b:a", "96k", "-map_metadata", "0"],
   },
   ogg: {
     codec: "libvorbis",
     extension: "ogg",
     container: "ogg",
-    additionalArgs: ["-q:a", "4"], // VBR quality (~128 kbps)
+    additionalArgs: ["-q:a", "4", "-map_metadata", "0"],
   },
   m4a: {
     codec: "aac",
     extension: "m4a",
     container: "ipod",
-    additionalArgs: ["-b:a", "128k"],
+    additionalArgs: ["-b:a", "128k", "-map_metadata", "0"],
   },
-  mp4: {
-    codec: "aac",
-    extension: "mp4",
-    container: "mp4",
-    additionalArgs: ["-b:a", "128k"],
+  wav: {
+    codec: "pcm_s16le",
+    extension: "wav",
+    container: "wav",
+    additionalArgs: ["-map_metadata", "0"],
   },
-  wma: {
-    codec: "wmav2",
-    extension: "wma",
-    container: "asf",
-    additionalArgs: ["-b:a", "128k"],
+  flac: {
+    codec: "flac",
+    extension: "flac",
+    container: "flac",
+    additionalArgs: ["-map_metadata", "0"],
   },
-  amr: {
-    codec: "libopencore_amrnb",
-    extension: "amr",
-    container: "amr",
-    additionalArgs: ["-ar", "8000", "-b:a", "12.2k"],
-  },
-  "3gp": {
-    codec: "aac",
-    extension: "3gp",
-    container: "3gp",
-    additionalArgs: ["-b:a", "64k"],
+  voice: {
+    codec: "libopus",
+    extension: "ogg",
+    container: "ogg",
+    // Telegram voice: mono, 48kHz, OGG Opus
+    additionalArgs: ["-b:a", "64k", "-ac", "1", "-ar", "48000"],
   },
 };
 
@@ -133,6 +127,10 @@ export async function convertAudio(
 
     command.save(outputPath);
   });
+}
+
+export function isVoiceFormat(format: string): boolean {
+  return format === "voice";
 }
 
 export function isSupportedFormat(format: string): boolean {

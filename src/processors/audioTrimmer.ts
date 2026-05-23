@@ -27,13 +27,16 @@ export async function trimAudio(
     );
 
     let lastReportedPercent = 0;
-    let totalDuration = 0;
 
     const command = ffmpeg(inputPath)
       .setStartTime(startSeconds)
       .duration(endSeconds - startSeconds)
       .audioCodec("libmp3lame")
       .format("mp3")
+      .outputOptions([
+        "-map_metadata", "0",     // Preserve original metadata
+        "-id3v2_version", "3",    // Preserve ID3v2 tags
+      ])
       .on("start", (commandLine) => {
         console.log("FFmpeg trim started:", commandLine);
       })
@@ -90,34 +93,34 @@ export function formatDuration(seconds: number): string {
 export function parseSingleTime(input: string): number | null {
   const cleanInput = input.trim();
 
-  // Format: HH:MM:SS or MM:SS or M:SS
-  const timeRegex = /^(?:(\d+):)?(?:(\d+):)?(\d+)$/;
-  const match = cleanInput.match(timeRegex);
+  // Format: HH:MM:SS or MM:SS or M:SS or just seconds
+  const parts = cleanInput.split(":");
 
-  if (match) {
-    const hours = match[1] && match[2] ? parseInt(match[1], 10) : 0;
-    const minutes = match[2] ? parseInt(match[2], 10) : match[1] ? parseInt(match[1], 10) : 0;
-    const seconds = parseInt(match[3], 10);
-
-    // If only one colon is present, it's MM:SS.
-    // If two colons, it's HH:MM:SS.
-    // If no colons, it's SS.
-
-    const parts = cleanInput.split(":");
-    if (parts.length === 3) {
-      return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
-    } else if (parts.length === 2) {
-      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-    } else if (parts.length === 1) {
-      return parseInt(parts[0], 10);
-    }
+  if (parts.length === 3) {
+    // HH:MM:SS
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const s = parseInt(parts[2], 10);
+    if (isNaN(h) || isNaN(m) || isNaN(s)) return null;
+    return h * 3600 + m * 60 + s;
+  } else if (parts.length === 2) {
+    // MM:SS
+    const m = parseInt(parts[0], 10);
+    const s = parseInt(parts[1], 10);
+    if (isNaN(m) || isNaN(s)) return null;
+    return m * 60 + s;
+  } else if (parts.length === 1) {
+    // Just seconds
+    const s = parseInt(parts[0], 10);
+    if (isNaN(s)) return null;
+    return s;
   }
 
   return null;
 }
 
 export function parseTimeInput(input: string): [number, number] | null {
-  // Support old format for backward compatibility: "MM:SS-MM:SS"
+  // Support format: "MM:SS-MM:SS" or "SS-SS"
   const parts = input.split("-");
   if (parts.length === 2) {
     const start = parseSingleTime(parts[0]);

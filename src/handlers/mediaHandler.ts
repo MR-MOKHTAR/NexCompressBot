@@ -1,16 +1,8 @@
 import { Context } from "telegraf";
-import {
-  getOperationMenu,
-  getMergeKeyboard,
-} from "../keyboards/qualityKeyboard";
-import {
-  saveMedia,
-  getActiveUserMergeSession,
-  addFileToMergeSession,
-} from "../utils/store";
+import { getOperationMenu } from "../keyboards/qualityKeyboard";
+import { saveMedia } from "../utils/store";
 import { t } from "../i18n";
 import { getUserLang } from "../utils/db";
-import { Markup } from "telegraf";
 
 function formatSize(bytes: number | undefined): string {
   if (!bytes) return "0.00";
@@ -37,16 +29,19 @@ export async function handleAudio(ctx: Context) {
   let fileSize: number | undefined;
   let durationMs: number | undefined;
   let fileNameRaw: string | undefined;
+  let mimeType: string | undefined;
 
   if ("audio" in msg) {
     fileId = msg.audio.file_id;
     fileSize = msg.audio.file_size;
     durationMs = msg.audio.duration;
     fileNameRaw = msg.audio.file_name;
+    mimeType = msg.audio.mime_type;
   } else if ("voice" in msg) {
     fileId = msg.voice.file_id;
     fileSize = msg.voice.file_size;
     durationMs = msg.voice.duration;
+    mimeType = msg.voice.mime_type;
   }
 
   if (!fileId) return;
@@ -54,46 +49,7 @@ export async function handleAudio(ctx: Context) {
   const size = formatSize(fileSize);
   const duration = formatDuration(durationMs);
   const fileName = fileNameRaw;
-  const shortId = saveMedia(fileId, "audio", fileName);
-
-  // Check if user has an active merge session
-  const activeMergeSession = getActiveUserMergeSession(userId);
-
-  if (activeMergeSession) {
-    // User is in merge mode, ask if they want to add this file
-    const addedSuccessfully = addFileToMergeSession(
-      activeMergeSession.sessionId,
-      fileId,
-      fileName,
-      durationMs,
-    );
-
-    if (addedSuccessfully) {
-      const msgText = t("merge_file_added", userLang)
-        .replace("{{count}}", (activeMergeSession.files.length + 1).toString())
-        .replace("{{size}}", size)
-        .replace("{{duration}}", duration);
-
-      await ctx.reply(msgText, {
-        reply_markup: Markup.inlineKeyboard([
-          [
-            Markup.button.callback("➕ Add Another", "merge_continue"),
-            Markup.button.callback(
-              "✅ Merge Now",
-              `m_go_${activeMergeSession.sessionId}`,
-            ),
-          ],
-          [
-            Markup.button.callback(
-              "❌ Cancel",
-              `m_cancel_${activeMergeSession.sessionId}`,
-            ),
-          ],
-        ]).reply_markup,
-      });
-      return;
-    }
-  }
+  const shortId = saveMedia(fileId, "audio", fileName, mimeType);
 
   // Normal operation menu
   const msgText = t("select_operation", userLang)
