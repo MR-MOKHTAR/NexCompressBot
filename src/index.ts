@@ -67,10 +67,42 @@ bot.catch(async (err, ctx) => {
   }
 });
 
-bot.launch().then(() => {
-  console.log("Bot started successfully.");
+let stopping = false;
+
+async function startBot() {
+  while (!stopping) {
+    try {
+      console.log("Connecting to Telegram...");
+      // bot.launch() resolves only after bot.stop() is called, or rejects
+      // if the polling loop hits an error telegraf doesn't retry itself
+      // (e.g. a connection reset while the local Bot API server restarts).
+      await bot.launch();
+      break;
+    } catch (err) {
+      if (stopping) break;
+      console.error("Bot polling crashed, restarting in 5s:", err);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  console.log("Bot stopped.");
+}
+
+startBot();
+
+// Prevent transient/unexpected errors elsewhere from killing the whole process.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
 });
 
 // Enable graceful stop
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+process.once("SIGINT", () => {
+  stopping = true;
+  bot.stop("SIGINT");
+});
+process.once("SIGTERM", () => {
+  stopping = true;
+  bot.stop("SIGTERM");
+});
